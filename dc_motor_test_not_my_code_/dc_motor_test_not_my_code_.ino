@@ -24,12 +24,12 @@ void fastSpeed()
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   // set speed to 200 out of possible range 0~255
-  analogWrite(enA, 255);
+  analogWrite(enA, 260);
   // turn on motor B
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
   // set speed to 200 out of possible range 0~255
-  analogWrite(enB, 255);
+  analogWrite(enB, 260);
 }
 
 void demoOne()
