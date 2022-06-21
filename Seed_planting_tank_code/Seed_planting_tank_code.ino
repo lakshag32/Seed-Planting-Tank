@@ -1,7 +1,7 @@
 //https://www.baldengineer.com/arduino-how-do-you-reset-millis.html
 
 unsigned long previous_time = 0; //for timing 
-
+unsigned long previous_time1 = 0; //for timing
 int yaw; //yaw angle that mpu6050 detects
 
 unsigned long timer = 0; //for mpu6050 code(that I got from a library)
@@ -155,8 +155,19 @@ void loop() {
       previous_time = millis(); 
       
     }
-    
+
+    while (millis()-previous_time >=5000 and millis()-previous_time <=10000){
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW);
+      analogWrite(enA, 0);
+      analogWrite(enB, 0); 
+      }
+     
      mpu.update();
      yaw = mpu.getAngleZ();
      turn_and_move(yaw, target_angle);  
+    
+     
 }
