@@ -1,11 +1,9 @@
-//https://www.youtube.com/watch?v=UZKxUFkwCc8&t=92s
-//https://arduinogetstarted.com/tutorials/arduino-serial-plotter
 //https://www.baldengineer.com/arduino-how-do-you-reset-millis.html
-#define throttle_pin 4
-#define turn_pin 2
 
-unsigned long previous_time = 0;
+unsigned long previous_time = 0; //for timing 
+
 int yaw; //yaw angle that mpu6050 detects
+
 unsigned long timer = 0; //for mpu6050 code(that I got from a library)
 
 //variables for l298n motor driver below
@@ -20,7 +18,7 @@ int in3 = 7;
 int in4 = 6;
 
 
-//PID constants below
+//PID variables below
 
 //errors 
 int error; 
@@ -38,20 +36,19 @@ int pd_output;
 
 
 //specific angle tank needs to turn to and maintain while moving 
-int target_angle_left;
-int set_angle_right = 0; 
-int current_angle = 180; 
+int target_angle;
 
-bool turn_motors_off = false; 
+//variables used to switch target angle from 0 to 180 and viceversa each iteration of void loop()
 bool change_angle = true; 
-
 int counter = 0; 
 
 //libraries
 #include "Wire.h"
 #include <MPU6050_light.h>
 
+//MPU6050 stuff
 MPU6050 mpu(Wire);
+
 
 void setup()
 {
@@ -64,8 +61,6 @@ void setup()
   pinMode(in2, OUTPUT);
   pinMode(in3, OUTPUT);
   pinMode(in4, OUTPUT);
-  pinMode(throttle_pin, INPUT);
-  pinMode(turn_pin, INPUT); 
   
 
   Wire.begin();
@@ -85,172 +80,22 @@ void setup()
   delay(1000); 
 
 }
-void turn_full_left(int yaw, int target_angle_left){
-     error = target_angle_left-yaw; 
-  
-      //calculate P outputs for left and right motors
-      p_output = kP*error;   
-      d_output = (error-previous_error)*kD; 
-      pd_output = p_output-d_output; 
-  
-      
-      
-      //motor power clamps to keep motors running w/in operating range(230-255 for my battery's current voltage, 
-      //will step up w/ DC boost converter later)
-        
-  
-      
-       if (pd_output > 25){
-        pd_output = 25; 
-        }
-      if (pd_output <0 and error > 0){
-        pd_output = 0; 
-        }
-  
-      if(pd_output <-25){
-        pd_output = -25; 
-        }
-      if(pd_output>0 and error <0){
-        pd_output = 0; 
-      } 
-       
-       
-     
-      if (error>0){ //use one of the errors to determine whether the tank is turning left or right
-        
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW); 
-        analogWrite(enA, 0); //right motor
-        analogWrite(enB, pd_output+230); // give robot//left motor
-       
-        }
-      
-      if(error<0){
-      
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);  
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW); 
-        analogWrite(enA, (pd_output-230)*-1); //right
-        analogWrite(enB, 0); //left
-  
-         
-        }
-      
-     
-      previous_error = error; 
-    
-    if(error >-5 and error <5){
-        // turn on motor A
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW);
-        analogWrite(enA, 255);
-        analogWrite(enB, 255);
-        
-  
-  
-    }
-    
-   
-} 
 
+//this function turns the tank to the target angle and makes it move forward while maintaining that angle
+void turn_and_move(int yaw, int target_angle){ 
+    error = target_angle-yaw; 
 
-void turn_full_right(int yaw){
-   if (turn_motors_off == false){
-     error = set_angle_right-yaw; 
-  
-      //calculate P outputs for left and right motors
-      p_output = kP*error;   
-      d_output = (error-previous_error)*kD; 
-      pd_output = p_output-d_output; 
-  
-      
-      
-      //motor power clamps to keep motors running w/in operating range(230-255 for my battery's current voltage, 
-      //will step up w/ DC boost converter later)
-        
-  
-      
-       if (pd_output > 25){
-        pd_output = 25; 
-        }
-      if (pd_output <0 and error > 0){
-        pd_output = 0; 
-        }
-  
-      if(pd_output <-25){
-        pd_output = -25; 
-        }
-      if(pd_output>0 and error <0){
-        pd_output = 0; 
-      } 
-       
-       
-     
-      if (error>0){ //use one of the errors to determine whether the tank is turning left or right
-        
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW); 
-        analogWrite(enA, 0); //right motor
-        analogWrite(enB, pd_output+230); // give robot//left motor
-       
-        }
-      
-      if(error<0){
-      
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);  
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW); 
-        analogWrite(enA, (pd_output-230)*-1); //right
-        analogWrite(enB, 0); //left
-  
-         
-        }
-      
-     
-      previous_error = error; 
-    
-    if(error >-5 and error <5){
-        // turn on motor A
-        turn_motors_off = true; 
-        digitalWrite(in1, HIGH);
-        digitalWrite(in2, LOW);
-        digitalWrite(in3, HIGH);
-        digitalWrite(in4, LOW);
-        analogWrite(enA, 0);
-        analogWrite(enB, 0);
-        
-  
-  
-    }
-    
-   }
-} 
-
-void move_forward(int yaw){
-    error = current_angle-yaw; 
     //calculate P outputs for left and right motors
     p_output = kP*error;   
     d_output = (error-previous_error)*kD; 
     pd_output = p_output-d_output; 
 
-    
-    
     //motor power clamps to keep motors running w/in operating range(230-255 for my battery's current voltage, 
-    //will step up w/ DC boost converter later)
-      
-
-    
-     if (pd_output > 25){
+    //will increase operating change w/ DC boost converter later)  
+    if (pd_output > 25){
       pd_output = 25; 
       }
+      
     if (pd_output <0 and error > 0){
       pd_output = 0; 
       }
@@ -258,166 +103,60 @@ void move_forward(int yaw){
     if(pd_output <-25){
       pd_output = -25; 
       }
+      
     if(pd_output>0 and error <0){
       pd_output = 0; 
-    } 
-     
-     
-   
-    if (error>0){ //use one of the errors to determine whether the tank is turning left or right
-      
+      } 
+        
+    if (error>0){ //if tank is turning right      
       digitalWrite(in1, HIGH);
       digitalWrite(in2, LOW);
       digitalWrite(in3, HIGH);
       digitalWrite(in4, LOW); 
       analogWrite(enA, 0); //right motor
-      analogWrite(enB, pd_output+230); // give robot//left motor
-     
+      analogWrite(enB, pd_output+230); //left motor
       }
     
-    if(error<0){
-    
+    if(error<0){ //if tank is turning left 
       digitalWrite(in1, HIGH);
       digitalWrite(in2, LOW);  
       digitalWrite(in3, HIGH);
       digitalWrite(in4, LOW); 
-      analogWrite(enA, (pd_output-230)*-1); //right
-      analogWrite(enB, 0); //left
-
-       
+      analogWrite(enA, (pd_output-230)*-1); //right motor
+      analogWrite(enB, 0); //left motor
       }
-    
    
-  previous_error = error; 
+    previous_error = error; 
   
-  if(error >-5 and error <5){
+    if(error >-5 and error <5){
       // turn on motor A
-      turn_motors_off = true; 
       digitalWrite(in1, HIGH);
       digitalWrite(in2, LOW);
       digitalWrite(in3, HIGH);
       digitalWrite(in4, LOW);
-      analogWrite(enA, 0);
-      analogWrite(enB, 0);
-      
-
-
-  }
-  
- 
+      analogWrite(enA, 255);
+      analogWrite(enB, 255);  
+      }    
 } 
 
 
 void loop() {
-  
-  
-    if (millis()-previous_time >= 10000){
-        
-        if (change_angle == true){
-          target_angle_left = 180;   
-          counter += 1; 
-        }
-        
-        if (counter == 2){
-          counter =  0; 
-          target_angle_left = 0; 
-          }
-        
-        previous_time = millis(); 
-     }
-    
-    mpu.update();
-    yaw = mpu.getAngleZ();
-    Serial.println(target_angle_left); 
-    turn_full_left(yaw, target_angle_left);  
-
-    //if((millis()-timer)>10){ // print data every 10ms
-      //yaw = mpu.getAngleZ(); //backside left = positive, backside right = negative
-      //Serial.print("yaw: ");
-      //Serial.print(yaw);
-      //Serial.print("\n"); 
-      //timer = millis();  
-    //}
-     
-    //}
-    
-  
+    if (millis()-previous_time >= 10000){ //switch target angle from 0 to 180 and vice versa every 10 seconds. Switching the angle allows the robot to turn   
+      if (change_angle == true){
+        target_angle = 180;   
+        counter += 1; 
+      }
       
+      if (counter == 2){
+        counter =  0; 
+        target_angle = 0; 
+      }
+      
+      previous_time = millis(); 
+      
+    }
     
+     mpu.update();
+     yaw = mpu.getAngleZ();
+     turn_and_move(yaw, target_angle);  
 }
-   /*
-    //get yaw value
-    while(true){
-      mpu.update();
-      if((millis()-timer)>10){ // print data every 10ms
-        yaw = mpu.getAngleZ(); //backside left = positive, backside right = negative
-        //Serial.print("yaw: ");
-        //Serial.print(yaw);
-        //Serial.print("\n"); 
-        timer = millis();  
-      }
-  
-      //get left error(positive_error, I think) and right error(negative_error, I think) 
-      
-      turn_full_left(yaw); 
-      if (turn_motors_off == true){
-        break;
-        }
-    }
-    
-    current_angle = 180; 
-    move_forward(yaw);
-    /*
-    for (int i = 0; i < 100; i++) {
-      mpu.update();
-      if((millis()-timer)>10){ // print data every 10ms
-        yaw = mpu.getAngleZ(); //backside left = positive, backside right = negative
-        //Serial.print("yaw: ");
-        //Serial.print(yaw);
-        //Serial.print("\n"); 
-        timer = millis();  
-      }
-       
-      move_forward(yaw);
-    }
-      
-    turn_motors_off = false;
-     
-    
-    while(true){
-      mpu.update();
-      if((millis()-timer)>10){ // print data every 10ms
-        yaw = mpu.getAngleZ(); //backside left = positive, backside right = negative
-        //Serial.print("yaw: ");
-        //Serial.print(yaw);
-        //Serial.print("\n"); 
-        timer = millis();  
-      }
-  
-      //get left error(positive_error, I think) and right error(negative_error, I think) 
-      
-      turn_full_right(yaw); 
-      if (turn_motors_off == true){
-        break;
-        }
-    }
-
-    current_angle = 0; 
-
-    for (int i = 0; i < 5; i++) {
-        mpu.update();
-        if((millis()-timer)>10){ // print data every 10ms
-          yaw = mpu.getAngleZ(); //backside left = positive, backside right = negative
-          //Serial.print("yaw: ");
-          //Serial.print(yaw);
-          //Serial.print("\n"); 
-          timer = millis();  
-        }
-         
-        move_forward(yaw);
-      }
-        
-    turn_motors_off = false;
-
-    */
-//}
